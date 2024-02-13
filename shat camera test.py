@@ -3,36 +3,49 @@
 #https://www.youtube.com/watch?v=j2OhRUGQ1M8
 import pygame
 
+thief_sprites = pygame.sprite.Group()
+all_sprites = pygame.sprite.Group()
+
 clock = pygame.time.Clock()
 fps_rate = 30
 
 blue = (0,0,200)
 red = (150,0,0)
+yellow = (255, 255, 0)
+green = (0,255,0)
 
-screen_width = 800
-screen_height = 600
+color_list = [blue, red, yellow, green]
+
+# screen_width = 800
+# screen_height = 600
 
 import random
 
-# camera_width = int (screen_width/2)
-# camera_height = int (screen_height/2)
-
-pygame.init()
-win = pygame.display.set_mode((screen_width, screen_height))
-
-class Screen():
+class Setup():
 
 	screen_width = 800
 	screen_height = 600
 
-	def blit_screen():
-		pass
+	def __init__ (self):
+		self.player_camera_surface_list = []
 
-		# win.blit(surface1, (0, 0))
-		# win.blit(surface2, (0, 0))
+	def setup_player_list(self,number_of_players, thief_sprites):
+		
+		for player in range(number_of_players):
+			#set up thief, camera and surface
+			thief = Thief(color_list[player], 0 ,0 , Thief.name_list[player])
+			thief_sprites.add(thief)
+
+			camera= Camera()
+			camera.set_screen_size(number_of_players)
+			camera.set_screen_position(number_of_players,player)
+
+			self.player_camera_surface_list.append ({'thief': thief, 'camera' : camera})
 
 
 class Thief (pygame.sprite.Sprite):
+
+	name_list = ["Gio", "Big Jim", "Alex Tryhard", "Trevor"]
 
 	def __init__(self,colour,posx, posy, name):
 
@@ -45,6 +58,8 @@ class Thief (pygame.sprite.Sprite):
 		self.posx = posx #actual position in the world
 		self.posy = posy #actual position in the world
 		self.name = name
+		self.player_number = int
+		self.camera_number = int
 
 	def move(self, keys):
 		if keys[pygame.K_LEFT]:
@@ -73,27 +88,28 @@ class Camera():
 
 	def set_screen_size(self, players):
 		if players == 1:
-			self.width = Screen.screen_width
-			self.height = Screen.screen_height
+			self.width = Setup.screen_width
+			self.height = Setup.screen_height
 		if players == 2:
-			self.width = Screen.screen_width
-			self.height = Screen.screen_height / 2
+			self.width = Setup.screen_width
+			self.height = Setup.screen_height / 2
 		if players == 3 or players == 4:
-			self.width = Screen.screen_width / 2
-			self.height = Screen.screen_height / 2
+			self.width = Setup.screen_width / 2
+			self.height = Setup.screen_height / 2
 
 	def set_screen_position(self, players, player):
+
 		pos_list = { 1: (0,0),
-					2 : [(0,0), (0, screen_height/ 2) ],
-					3 : [(0,0),(screen_width/2, 0),(0, screen_height/ 2),( screen_width/2, screen_height/ 2)]}
+					2 : [(0,0), (0, Setup.screen_height/ 2) ],
+					3 : [(0,0),(Setup.screen_width/2, 0),(0, Setup.screen_height/ 2),( Setup.screen_width/2, Setup.screen_height/ 2)]}
 
 		if players == 1:
-			self.x = pos_list[1][0]
-			self.y = pos_list[1][1]
+			self.x = 0
+			self.y = 0
 		if players == 2:
 			self.x = pos_list[2][player-1][0]
 			self.y = pos_list[2][player-1][1]
-		else:
+		if players == 3 or players == 4:
 			self.x = pos_list[3][player-1][0]
 			self.y = pos_list[3][player-1][1]
 
@@ -105,8 +121,6 @@ class Camera():
 	def calculate_offset(sprite, thief_sprite):
 		x = thief_sprite.posx - sprite.posx
 		y = thief_sprite.posy - sprite.posy
-
-		print (x,y)
 
 		return {'x' : x, 'y': y}
 
@@ -121,44 +135,20 @@ class Camera():
 				sprite.rect.x = offset['x'] + int (camera.width/2)
 				sprite.rect.y = offset['y'] + int (camera.height/2)
 
-		# for sprite in all_sprites:
-		# 	offset = Camera.calculate_offset(sprite, thief_sprite) 
-
-		# 	if sprite == thief_sprite:
-
-		# 		sprite.rect.x = int (camera.width/2)
-		# 		sprite.rect.y = int (camera.height/2)
-
-
-		# 	else:
-
-		# 		sprite.rect.x = thief_sprite.posx + offset['x']
-		# 		sprite.rect.y =  thief_sprite.posy + offset['y']
-
 		all_sprites.draw(surface)
 		win.blit(surface, (self.x, self.y))
 
-players = 2
+pygame.init()
+win = pygame.display.set_mode((Setup.screen_width, Setup.screen_height))
 
-camera1 = Camera()
-camera1.set_screen_size(players)
-camera1.set_screen_position(players,1)
+number_of_players = 4
 
-camera2 = Camera()
-camera2.set_screen_size(players)
-camera2.set_screen_position(players,2)
+setup = Setup()
+setup.setup_player_list(number_of_players,thief_sprites)
 
-
-gio = Thief(red,50,50, 'butt')
-big_jim =Thief (blue,50,50, 'head')
-
-thief_sprites = pygame.sprite.Group()
-all_sprites = pygame.sprite.Group()
-
-thief_sprites.add(gio)  # Add Thief sprite to the group
-thief_sprites.add(big_jim)
-
+#add sprites to all sprite list
 all_sprites.add(thief_sprites)
+
 
 # Main game loop
 running = True
@@ -170,14 +160,20 @@ while running:
 			running = False
 
 	keys = pygame.key.get_pressed()
-	gio.move(keys)
 
-	# # Create a new surface each frame
-	surface1 = camera1.create_surface()
-	surface2 = camera2.create_surface()
+	for player in range(number_of_players):
 
-	camera1.blit_action(surface1, all_sprites, gio, camera1)
-	camera2.blit_action(surface2, all_sprites, big_jim, camera2)
+		current_player = setup.player_camera_surface_list[player]
+		# if current_player['thief'].name == "Gio":
+		# 	player['thief'].move(keys)
+
+
+		thief = current_player['thief']
+		camera = current_player['camera']
+
+		surface = camera.create_surface()
+
+		camera.blit_action(surface, all_sprites, thief, camera)
 
 	# Update the display
 	pygame.display.flip()
