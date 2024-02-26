@@ -2,6 +2,10 @@ import pygame
 import random
 import uuid
 
+import SHAT_game_objects
+random.seed(1)
+
+
 # sprite lists
 all_sprites = pygame.sprite.Group()
 
@@ -23,9 +27,9 @@ q3_sprite = pygame.sprite.Group()
 q4_sprite = pygame.sprite.Group()
 
 #display settings
-screen_height = 600
-screen_width = 800
-fps_rate = 60
+screen_height = 800
+screen_width = 600
+fps_rate = 30
 
 #initiialize display and import display settings
 pygame.init()
@@ -34,7 +38,11 @@ win = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Some Honor Among Thieves")
 clock = pygame.time.Clock()
 
-#random.seed(34)
+#fullscreen
+pygame.display.toggle_fullscreen()
+
+
+# random.seed(0x12f20d620)
 
 class Map (pygame.sprite.Sprite):
     
@@ -43,7 +51,6 @@ class Map (pygame.sprite.Sprite):
     hallway = (100,100,150)
     waypoint  = (100,250,250)
     anchor = (200,0,0)
-    
 
     room_type_dict = {'office': (158, 229, 240), #blue
                     'closet': (69,69,59), #brown
@@ -60,13 +67,14 @@ class Map (pygame.sprite.Sprite):
                     'bathroom':  0,
                     'industry':  0,
                     'locker':    0 }
-    hall_thin = 50
+    
     default_room_size = 50
+    hall_thin = default_room_size
 
     room_start_pos = random.randint (1,4)
 
     #wall variabless
-    wall_width = 10
+    wall_width = int(default_room_size/10)
 
     #map variables
     map_mod = 1
@@ -130,6 +138,10 @@ class Entry_Room(Map):
         self.vertical_door_count = 1
         self.horizontal_door_count = 1
         self.door_list =  [] #probably dont need these but let's fix this
+        self.orientation = None
+        self.spawn_points = {}
+        self.posy = 0
+        self.posx = 0
 
     def create_entry(self):
         #north
@@ -139,6 +151,7 @@ class Entry_Room(Map):
             Room.create_parking_lot(self.entry_roll, self)
             self.move_amount_y = self.rect.y - Map.wall_width
             self.move_amount_x = self.rect.x
+            self.orientation = 'north'
         #east
         if self.entry_roll == 2:
             self.rect.x = screen_width - 50
@@ -146,6 +159,7 @@ class Entry_Room(Map):
             Room.create_parking_lot(self.entry_roll, self)
             self.move_amount_x = self.rect.x + Map.wall_width
             self.move_amount_y = self.rect.y
+            self.orientation = 'east'
         # south
         if self.entry_roll == 3:
             self.rect.x= random.randrange(0, Map.map_height - 50, 50)
@@ -153,6 +167,7 @@ class Entry_Room(Map):
             Room.create_parking_lot(self.entry_roll, self)
             self.move_amount_y = self.rect.y + Map.wall_width
             self.move_amount_x = self.rect.x
+            self.orientation = 'south'
         #west
         if self.entry_roll == 4:
             self.rect.x = 0
@@ -160,9 +175,16 @@ class Entry_Room(Map):
             Room.create_parking_lot(self.entry_roll, self)
             self.move_amount_x = self.rect.x - Map.wall_width
             self.move_amount_y = self.rect.y
+            self.orientation = 'west'
+
+        self.posx = self.rect.x
+        self.posy = self.rect.y
 
         entry_sprite.add(self)
         Entry_Room.room = self
+
+        #create spawn points for entry room
+        SHAT_game_objects.Spawn_Points.create_entry_spawn(self)
 
     def shuffle_entry_pos(self):
         self.rect.x = self.move_amount_x
@@ -287,7 +309,7 @@ class Hallway(Map):
                 hall.ph_weight += random.randint (0,1)
 
             #and the same thing but for the entry hall if it hits the entry room, kill that hall with fire
-            ph_entry_test = pygame.sprite.spritecollide(hall, entry_sprite, False, False)
+            ph_entry_test = pygame.sprite.spritecollide(hall, entry_sprite, False,)
             if ph_entry_test:
                 hall.ph_weight -= 10000
 
@@ -573,17 +595,17 @@ class Room(pygame.sprite.Sprite):
         room_size = room.rect.height * room.rect.width
         binary_room_roll = random.randint(0,1)
 
-        if room_size <= 5000:
+        if room_size <= Map.default_room_size:
             self.room_size = 'small'
-        if room_size > 5000 and room_size <= 40000:
+        if room_size > Map.default_room_size * 100 and room_size <= Map.default_room_size * 800:
             self.room_size = "medium"
-            if room_size <15000:
+            if room_size <Map.default_room_size * 300:
                 if binary_room_roll ==1:
                     self.room_size = "medium"
-            if room_size >15000:
+            if room_size > Map.default_room_size * 300:
                 if binary_room_roll == 1:
                     self.room_size = "large"
-        if room_size > 40000:
+        if room_size > Map.default_room_size * 800:
             self.room_size = "large"
 
     def assign_room_type(self):
@@ -595,9 +617,9 @@ class Room(pygame.sprite.Sprite):
         if self.room_size == "small":
             if Map.room_type_count.get("kitchen") < Map.room_type_count.get("bathroom"):
                 room_choices.append(Map.room_type_dict.get('kitchen'))
-            room_choices.append(Map.room_type_dict.get('bathroom'))
-            room_choices.append(Map.room_type_dict.get('office'))
-            room_choices.append(Map.room_type_dict.get('closet'))
+                room_choices.append(Map.room_type_dict.get('bathroom'))
+                room_choices.append(Map.room_type_dict.get('office'))
+                room_choices.append(Map.room_type_dict.get('closet'))
 
             if Map.room_type_count.get("locker") < Map.room_type_count.get("kitchen"):
                 room_choices.append(Map.room_type_dict.get('locker'))
@@ -619,6 +641,9 @@ class Room(pygame.sprite.Sprite):
                 if sum(Map.room_type_count.values()) > 8:
                     if (Map.room_type_count['office']) / sum(Map.room_type_count.values()) > 0.4: # if it's more than 40 percent
                         room_choices.remove (Map.room_type_dict.get('office'))
+
+        if len(room_choices) == 0:
+            room_choices.append(Map.room_type_dict.get('closet')) #fix this, too small room
 
         room_picked = random.choice(room_choices)
         self.image.fill (room_picked)
@@ -779,6 +804,8 @@ class Door(Map):
             if test :
                 door_sprites.add(entry_door)
 
+
+
 #create boundaries
 Map.create_boundaries
 
@@ -826,43 +853,53 @@ for room in room_sprites:
 
     Door.choose_doors(room)
 
-#add the sprites
-all_sprites.add(entry_sprite)
-all_sprites.add(hall_sprites)
-all_sprites.add(room_sprites)
-all_sprites.add(guide_walls)
-all_sprites.add(wall_sprites)
-all_sprites.add(door_sprites)
 
-print (Map.room_type_count)
-print (len(all_sprites))
+#add entry sprite
+def get_entry_sprites():
+    return entry
 
-#main game loop
-game_continue = True
-while game_continue:
-    clock.tick(fps_rate)
+# #add the sprites
+# all_sprites.add(entry_sprite)
+# all_sprites.add(hall_sprites)
+# all_sprites.add(room_sprites)
+# all_sprites.add(guide_walls)
+# all_sprites.add(wall_sprites)
+# all_sprites.add(door_sprites)
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            game_continue = False
+# print (Map.room_type_count)
+# print (len(all_sprites))
 
-        keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
-            for sprites in all_sprites:
-                sprites.rect.x += Map.wall_width * 5
-        if keys[pygame.K_RIGHT]:
-            for sprites in all_sprites:
-                sprites.rect.x -= Map.wall_width * 5
-        if keys[pygame.K_UP]:
-            for sprites in all_sprites:
-                sprites.rect.y += Map.wall_width * 5
-        if keys[pygame.K_DOWN]:
-            for sprites in all_sprites:
-                sprites.rect.y -= Map.wall_width * 5
+# #main game loop
+# game_continue = True
+# while game_continue:
+#     clock.tick(fps_rate)
 
-    all_sprites.update()
+#     for event in pygame.event.get():
+#         if event.type == pygame.QUIT:
+#             game_continue = False
 
-    win.fill((231,226,211))
-    all_sprites.draw(win)
-    pygame.display.flip()
+#         keys = pygame.key.get_pressed()
+#         if keys[pygame.K_LEFT]:
+#             for sprites in all_sprites:
+#                 sprites.rect.x += Map.wall_width * 5
+#         if keys[pygame.K_RIGHT]:
+#             for sprites in all_sprites:
+#                 sprites.rect.x -= Map.wall_width * 5
+#         if keys[pygame.K_UP]:
+#             for sprites in all_sprites:
+#                 sprites.rect.y += Map.wall_width * 5
+#         if keys[pygame.K_DOWN]:
+#             for sprites in all_sprites:
+#                 sprites.rect.y -= Map.wall_width * 5
+#         if keys[pygame.K_ESCAPE]:
+#             game_continue = False
+
+#     all_sprites.update()
+
+#     win.fill((231,226,211))
+#     all_sprites.draw(win)
+#     pygame.display.flip()
+
+#{'office': 29, 'closet': 0, 'storage': 5, 'kitchen': 0, 'bathroom': 0, 'industry': 3, 'locker': 0}
+
 
