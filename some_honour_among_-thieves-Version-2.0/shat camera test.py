@@ -6,6 +6,10 @@ import random
 
 import SHAT_map_gen_v2 as map_gen
 import SHAT_game_objects as game_objects
+import SHAT_characters as character
+
+#get the 
+from SHAT_map_gen_v2 import hall_sprites, room_sprites, door_sprites
 
 thief_sprites = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
@@ -34,7 +38,9 @@ class Setup():
 			#set up thief, camera and surface
 			starting_location = game_objects.Spawn_Points.assign_spawn_location(entry_sprite)
 			starting_x, starting_y = starting_location['posx'], starting_location['posy']
-			thief = Thief(color_list[player], starting_x ,starting_y , Thief.name_list[player])
+			thief = character.Thief(color_list[player], starting_x ,starting_y , character.Thief.name_list[player])
+			thief.player_number = player + 1 
+			thief.assign_control_scheme()
 			thief_sprites.add(thief)
 
 			camera= Camera()
@@ -43,37 +49,6 @@ class Setup():
 
 			self.player_camera_surface_list.append ({'thief': thief, 'camera' : camera})
 
-class Thief (pygame.sprite.Sprite):
-
-	name_list = ["Gio", "Big Jim", "Alex Tryhard", "Trevor"]
-
-	def __init__(self,colour,posx, posy, name):
-
-		pygame.sprite.Sprite.__init__(self)
-		self.image = pygame.Surface((10,10))
-		self.image.fill(colour)  
-		self.rect = self.image.get_rect()
-		self.rect.x = 0
-		self.rect.y = 0
-		self.posx = posx #actual position in the world
-		self.posy = posy #actual position in the world
-		self.name = name
-		self.player_number = int
-		self.camera_number = int
-
-	def move(self, keys):
-		if keys[pygame.K_LEFT]:
-			for sprites in all_sprites:
-				self.posx += 5
-		if keys[pygame.K_RIGHT]:
-			for sprites in all_sprites:
-				self.posx-=5
-		if keys[pygame.K_UP]:
-			for sprites in all_sprites:
-				self.posy += 5
-		if keys[pygame.K_DOWN]:
-			for sprites in all_sprites:
-				self.posy -= 5
 
 class Camera():
 
@@ -135,26 +110,30 @@ class Camera():
 				sprite.rect.x = offset['x'] + int (camera.width/2)
 				sprite.rect.y = offset['y'] + int (camera.height/2)
 
-
 		all_sprites.draw(surface)
 		win.blit(surface, (self.x, self.y))
 
 pygame.init()
 win = pygame.display.set_mode((Setup.screen_width, Setup.screen_height))
 
-number_of_players = 1
+number_of_players = 4
 
 #get entry sprite
 entry_sprite = map_gen.get_entry_sprites()
 
+#and the rest of the sprites
+print (hall_sprites)
 
 setup = Setup()
 setup.setup_player_list(number_of_players,thief_sprites, entry_sprite)
 
 #add sprites to all sprite list
-all_sprites.add(entry_sprite)
-all_sprites.add(thief_sprites)
+all_sprites.add (entry_sprite)
+all_sprites.add (hall_sprites)
+all_sprites.add (room_sprites)
+all_sprites.add (door_sprites)
 
+all_sprites.add (thief_sprites)
 
 # Main game loop
 running = True
@@ -170,13 +149,12 @@ while running:
 	for player in range(number_of_players):
 
 		current_player = setup.player_camera_surface_list[player]
-		# if current_player['thief'].name == "Gio":
-		# 	player['thief'].move(keys)
 
-
+		#get thief and update his inputs
 		thief = current_player['thief']
-		camera = current_player['camera']
+		thief.move(keys,event)
 
+		camera = current_player['camera']
 		surface = camera.create_surface()
 
 		camera.blit_action(surface, all_sprites, thief, camera)
