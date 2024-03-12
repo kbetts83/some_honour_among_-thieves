@@ -3,8 +3,10 @@ import random
 import uuid
 
 import SHAT_game_objects
-random.seed(1)
-
+#random.seed(33) # east
+#random.seed(1) #north
+#random.seed (21) #west
+random.seed (9)
 
 # sprite lists
 all_sprites = pygame.sprite.Group()
@@ -39,7 +41,7 @@ pygame.display.set_caption("Some Honor Among Thieves")
 clock = pygame.time.Clock()
 
 #fullscreen
-pygame.display.toggle_fullscreen()
+# pygame.display.toggle_fullscreen()
 
 
 # random.seed(0x12f20d620)
@@ -804,8 +806,6 @@ class Door(Map):
             if test :
                 door_sprites.add(entry_door)
 
-
-
 #create boundaries
 Map.create_boundaries
 
@@ -853,18 +853,31 @@ for room in room_sprites:
 
     Door.choose_doors(room)
 
-
 #add entry sprite
 def get_entry_sprites():
     return entry
 
-# #add the sprites
-# all_sprites.add(entry_sprite)
+def get_sprites(sprite_group):
+    for sprite in sprite_group:
+        sprite.posx = sprite.rect.right
+        sprite.posy = sprite.rect.bottom
+
+    return sprite_group
+
+#export all the sprite lists
+hall_sprites = get_sprites(hall_sprites)
+room_sprites = get_sprites(room_sprites)
+door_sprites = get_sprites(door_sprites)
+
+# # #add the sprites
+# all_sprites.add(entry_sprite) 
 # all_sprites.add(hall_sprites)
 # all_sprites.add(room_sprites)
 # all_sprites.add(guide_walls)
 # all_sprites.add(wall_sprites)
 # all_sprites.add(door_sprites)
+
+
 
 # print (Map.room_type_count)
 # print (len(all_sprites))
