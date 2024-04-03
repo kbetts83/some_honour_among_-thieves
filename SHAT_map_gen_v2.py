@@ -2,6 +2,12 @@ import pygame
 import random
 import uuid
 
+import SHAT_game_objects
+#random.seed(33) # east
+#random.seed(1) #north
+#random.seed (21) #west
+random.seed (9)
+
 # sprite lists
 all_sprites = pygame.sprite.Group()
 
@@ -14,6 +20,7 @@ door_sprites = pygame.sprite.Group()
 entry_sprite = pygame.sprite.Group()
 possible_room_sprites = pygame.sprite.Group()
 parking_lot_sprites = pygame.sprite.Group()
+possible_wall_sprites = pygame.sprite.Group()
 
 check_sprites = pygame.sprite.Group()
 boundary_sprites = pygame.sprite.Group()
@@ -23,9 +30,9 @@ q3_sprite = pygame.sprite.Group()
 q4_sprite = pygame.sprite.Group()
 
 #display settings
-screen_height = 600
-screen_width = 800
-fps_rate = 60
+screen_height = 800
+screen_width = 600
+fps_rate = 30
 
 #initiialize display and import display settings
 pygame.init()
@@ -34,7 +41,11 @@ win = pygame.display.set_mode((screen_width, screen_height))
 pygame.display.set_caption("Some Honor Among Thieves")
 clock = pygame.time.Clock()
 
-#random.seed(34)
+#fullscreen
+# pygame.display.toggle_fullscreen()
+
+
+# random.seed(0x12f20d620)
 
 class Map (pygame.sprite.Sprite):
     
@@ -43,7 +54,6 @@ class Map (pygame.sprite.Sprite):
     hallway = (100,100,150)
     waypoint  = (100,250,250)
     anchor = (200,0,0)
-    
 
     room_type_dict = {'office': (158, 229, 240), #blue
                     'closet': (69,69,59), #brown
@@ -60,13 +70,14 @@ class Map (pygame.sprite.Sprite):
                     'bathroom':  0,
                     'industry':  0,
                     'locker':    0 }
-    hall_thin = 50
+    
     default_room_size = 50
+    hall_thin = default_room_size
 
     room_start_pos = random.randint (1,4)
 
     #wall variabless
-    wall_width = 10
+    wall_width = int(default_room_size/10)
 
     #map variables
     map_mod = 1
@@ -130,6 +141,10 @@ class Entry_Room(Map):
         self.vertical_door_count = 1
         self.horizontal_door_count = 1
         self.door_list =  [] #probably dont need these but let's fix this
+        self.orientation = None
+        self.spawn_points = {}
+        self.posy = 0
+        self.posx = 0
 
     def create_entry(self):
         #north
@@ -139,6 +154,7 @@ class Entry_Room(Map):
             Room.create_parking_lot(self.entry_roll, self)
             self.move_amount_y = self.rect.y - Map.wall_width
             self.move_amount_x = self.rect.x
+            self.orientation = 'north'
         #east
         if self.entry_roll == 2:
             self.rect.x = screen_width - 50
@@ -146,6 +162,7 @@ class Entry_Room(Map):
             Room.create_parking_lot(self.entry_roll, self)
             self.move_amount_x = self.rect.x + Map.wall_width
             self.move_amount_y = self.rect.y
+            self.orientation = 'east'
         # south
         if self.entry_roll == 3:
             self.rect.x= random.randrange(0, Map.map_height - 50, 50)
@@ -153,6 +170,7 @@ class Entry_Room(Map):
             Room.create_parking_lot(self.entry_roll, self)
             self.move_amount_y = self.rect.y + Map.wall_width
             self.move_amount_x = self.rect.x
+            self.orientation = 'south'
         #west
         if self.entry_roll == 4:
             self.rect.x = 0
@@ -160,9 +178,16 @@ class Entry_Room(Map):
             Room.create_parking_lot(self.entry_roll, self)
             self.move_amount_x = self.rect.x - Map.wall_width
             self.move_amount_y = self.rect.y
+            self.orientation = 'west'
+
+        self.posx = self.rect.x
+        self.posy = self.rect.y
 
         entry_sprite.add(self)
         Entry_Room.room = self
+
+        #create spawn points for entry room
+        SHAT_game_objects.Spawn_Points.create_entry_spawn(self)
 
     def shuffle_entry_pos(self):
         self.rect.x = self.move_amount_x
@@ -287,7 +312,7 @@ class Hallway(Map):
                 hall.ph_weight += random.randint (0,1)
 
             #and the same thing but for the entry hall if it hits the entry room, kill that hall with fire
-            ph_entry_test = pygame.sprite.spritecollide(hall, entry_sprite, False, False)
+            ph_entry_test = pygame.sprite.spritecollide(hall, entry_sprite, False,)
             if ph_entry_test:
                 hall.ph_weight -= 10000
 
@@ -573,17 +598,17 @@ class Room(pygame.sprite.Sprite):
         room_size = room.rect.height * room.rect.width
         binary_room_roll = random.randint(0,1)
 
-        if room_size <= 5000:
+        if room_size <= Map.default_room_size:
             self.room_size = 'small'
-        if room_size > 5000 and room_size <= 40000:
+        if room_size > Map.default_room_size * 100 and room_size <= Map.default_room_size * 800:
             self.room_size = "medium"
-            if room_size <15000:
+            if room_size <Map.default_room_size * 300:
                 if binary_room_roll ==1:
                     self.room_size = "medium"
-            if room_size >15000:
+            if room_size > Map.default_room_size * 300:
                 if binary_room_roll == 1:
                     self.room_size = "large"
-        if room_size > 40000:
+        if room_size > Map.default_room_size * 800:
             self.room_size = "large"
 
     def assign_room_type(self):
@@ -595,9 +620,9 @@ class Room(pygame.sprite.Sprite):
         if self.room_size == "small":
             if Map.room_type_count.get("kitchen") < Map.room_type_count.get("bathroom"):
                 room_choices.append(Map.room_type_dict.get('kitchen'))
-            room_choices.append(Map.room_type_dict.get('bathroom'))
-            room_choices.append(Map.room_type_dict.get('office'))
-            room_choices.append(Map.room_type_dict.get('closet'))
+                room_choices.append(Map.room_type_dict.get('bathroom'))
+                room_choices.append(Map.room_type_dict.get('office'))
+                room_choices.append(Map.room_type_dict.get('closet'))
 
             if Map.room_type_count.get("locker") < Map.room_type_count.get("kitchen"):
                 room_choices.append(Map.room_type_dict.get('locker'))
@@ -619,6 +644,9 @@ class Room(pygame.sprite.Sprite):
                 if sum(Map.room_type_count.values()) > 8:
                     if (Map.room_type_count['office']) / sum(Map.room_type_count.values()) > 0.4: # if it's more than 40 percent
                         room_choices.remove (Map.room_type_dict.get('office'))
+
+        if len(room_choices) == 0:
+            room_choices.append(Map.room_type_dict.get('closet')) #fix this, too small room
 
         room_picked = random.choice(room_choices)
         self.image.fill (room_picked)
@@ -664,7 +692,7 @@ class Door(Map):
 
     def check_doors(door):
 
-        #make sure it connects with at least 2 rooms
+        #make sure it connects with at least 2 rooms $toot
         room_collide_test = pygame.sprite.spritecollide (door, room_sprites, False)
         if len(room_collide_test) < 2:
             door.room_check = False
@@ -687,6 +715,10 @@ class Door(Map):
                 if door.rect.bottom > room.rect.bottom:
                     door.room_check = False
 
+                #do one more check to see if the door isn't too low or to high
+                if door.rect.bottom > (room.rect.bottom + Map.wall_width) or door.rect.top < (room.rect.top + Map.wall_width):
+                    door.room_check = False
+
             for hall in hall_collide_test:
                 if door.rect.top <= hall.rect.top:
                     door.room_check = False
@@ -700,21 +732,28 @@ class Door(Map):
                 if door.rect.right > room.rect.right:
                     door.room_check = False
 
+                #do one more check to see if the door isn't too low or to high
+                if door.rect.right > (room.rect.right - Map.wall_width) or door.rect.left < (room.rect.left + Map.wall_width):
+                    door.room_check = False
+
             for hall in hall_collide_test:
                 if door.rect.left <= hall.rect.left:
                     door.room_check = False
                 if door.rect.right > hall.rect.right:
                     door.room_check = False
 
-    def create_vertical_doors(room):
+
+
+    def create_vertical_doors(room): 
+
         x = room.rect.right
-        y =random.randint (room.rect.top, room.rect.bottom - Door.door_size)
+        y =random.randint (room.rect.top + Map.wall_width * 2, room.rect.bottom - Door.door_size)
         east_door = Door(x - Map.wall_width ,y, Door.door_size_long , Door.door_size)
         east_door.orientation = 'vertical'
         Door.check_doors(east_door)
 
         x = room.rect.left - Map.wall_width
-        y =random.randint (room.rect.top, room.rect.bottom - Door.door_size)
+        y =random.randint (room.rect.top + Map.wall_width * 2, room.rect.bottom - Door.door_size)
         west_door = Door(x - Map.wall_width ,y, Door.door_size_long , Door.door_size)
         west_door.orientation = 'vertical'
         Door.check_doors(west_door)
@@ -728,13 +767,13 @@ class Door(Map):
 
     def create_horizontal_doors(room):
         y = room.rect.top - Map.wall_width * 2
-        x =random.randint (room.rect.left, room.rect.right - Door.door_size)
+        x =random.randint (room.rect.left + Map.wall_width * 2 , room.rect.right - Door.door_size)
         north_door = Door(x - Map.wall_width ,y, Door.door_size , Door.door_size_long)
         north_door.orientation = 'horizontal'
         Door.check_doors(north_door)
 
         y = room.rect.bottom - Map.wall_width 
-        x =random.randint (room.rect.left, room.rect.right - Door.door_size)
+        x =random.randint (room.rect.left + Map.wall_width * 2, room.rect.right - Door.door_size)
         south_door = Door(x - Map.wall_width ,y, Door.door_size , Door.door_size_long)
         south_door.orientation = 'horizontal'
         Door.check_doors(south_door)
@@ -779,6 +818,97 @@ class Door(Map):
             if test :
                 door_sprites.add(entry_door)
 
+class Wall(Map):
+
+    def __init__(self, width,height, posx, posy):
+        pygame.sprite.Sprite.__init__(self)
+        if width  * height > 0:
+            self.image = pygame.Surface((width,height))
+            self.valid = True
+        else:
+            self.image = pygame.Surface((0,0))
+            self.valid = False
+        self.image.fill((0,0,0))  
+        self.rect = self.image.get_rect()
+        self.rect.x = posx
+        self.rect.y = posy
+
+    def check_door_collision( wall):
+
+        #check for a door - if there is build walls around it
+        door_collision =  pygame.sprite.spritecollide(wall, door_sprites, False)
+        return door_collision
+
+    def check_valid_wall(width,height):
+        if width * height > 0:
+            return True
+        else:
+            return False
+
+    def create_vertical_walls(self,room):
+        proto_east_wall = Wall(Map.wall_width, room.rect.height - Map.wall_width, room.rect.left , room.rect.top)
+        proto_west_wall = Wall(Map.wall_width, room.rect.height - Map.wall_width, room.rect.right - Map.wall_width, room.rect.top )
+        horizontal_walls = [proto_east_wall,proto_west_wall]
+
+        for wall in horizontal_walls:
+            door_collisions = Wall.check_door_collision(wall)
+
+            segments = len(door_collisions)
+            for collision in range(segments): 
+                door = door_collisions[collision]
+                if collision == 0: # if it's the first one
+                    next_wall = Wall(wall.rect.width,  door.rect.top - room.rect.top , wall.rect.x, room.rect.y )
+                    if next_wall.valid == True:
+                        wall_sprites.add(next_wall)
+
+                if collision == segments-1: #last one
+                    next_wall = Wall(wall.rect.width , room.rect.bottom - door.rect.bottom , wall.rect.x, door.rect.bottom )
+                    if next_wall.valid == True:
+                        wall_sprites.add(next_wall)
+
+                else:
+
+                    next_door = door_collisions[collision + 1] 
+                    next_wall = Wall(Map.wall_width , next_door.rect.top- door.rect.bottom , wall.rect.left, door.rect.bottom )
+                    if next_wall.valid == True:
+                        wall_sprites.add(next_wall)
+
+            if segments == 0 :
+                next_wall = Wall(wall.rect.width, wall.rect.height + Map.wall_width   , wall.rect.x, wall.rect.y )
+                wall_sprites.add(next_wall)
+
+    def create_horizontal_walls(self,room):
+        proto_north_wall = Wall(room.rect.width, Map.wall_width, room.rect.left, room.rect.top )
+        proto_south_wall = Wall(room.rect.width, Map.wall_width, room.rect.left, room.rect.bottom)
+        vertical_walls = [proto_north_wall, proto_south_wall]
+
+        for wall in vertical_walls:
+            door_collisions = Wall.check_door_collision(wall)
+
+            segments = len(door_collisions)
+            for collision in range(segments): 
+                door = door_collisions[collision]
+
+                if collision == 0: # if it's the first one
+                    next_wall = Wall(door.rect.right - room.rect.left, Map.wall_width,room.rect.left, door.rect.top + Map.wall_width)
+                    if next_wall.valid == True:
+                        wall_sprites.add(next_wall)
+
+                if collision == segments-1: #last 'one
+                    next_wall = Wall(room.rect.right - door.rect.left, Map.wall_width,door.rect.left, door.rect.top + Map.wall_width )
+                    if next_wall.valid == True:
+                        wall_sprites.add(next_wall)
+
+                else:
+                    next_door = door_collisions[collision + 1] 
+                    next_wall = Wall( next_door.rect.left - door.rect.right, Map.wall_width , door.rect.right ,door.rect.top + Map.wall_width)
+                    if next_wall.valid == True:
+                        wall_sprites.add(next_wall)
+
+            if segments == 0 :
+                next_wall = Wall(room.rect.width, Map.wall_width,wall.rect.x, wall.rect.y  )
+                wall_sprites.add(next_wall)
+
 #create boundaries
 Map.create_boundaries
 
@@ -794,7 +924,7 @@ Room.entry = entry
 Hallway.plot_hallway(entry)
 Entry_Room.shuffle_entry_pos(entry)
 
-#and hte doors for hte entry
+#and the doors for hte entry
 Door.create_entry_rooms(entry)
 
 # #now build the rooms
@@ -812,6 +942,8 @@ for rgi in range (grow_cycles):
 
 #trim the room and assign size/room types
 for room in room_sprites:
+    room_proto_wall= Wall(0,0,0,0)
+
     Room.trim_room(room)
 
 room_sprites.add(entry_sprite)
@@ -826,16 +958,40 @@ for room in room_sprites:
 
     Door.choose_doors(room)
 
-#add the sprites
-all_sprites.add(entry_sprite)
+# #build walls for entry room
+intitial_entry_wall= Wall(0,0,0,0)
+intitial_entry_wall.create_vertical_walls(entry)
+intitial_entry_wall.create_horizontal_walls(entry)
+
+#build walls for rooms
+for room in room_sprites:
+    intitial_entry_wall= Wall(0,0,10,10)
+    intitial_entry_wall.create_vertical_walls(room)
+    intitial_entry_wall.create_horizontal_walls(room)
+
+#add entry sprite
+def get_entry_sprites():
+    return entry
+
+def get_sprites(sprite_group):
+    for sprite in sprite_group:
+        sprite.posx = sprite.rect.right
+        sprite.posy = sprite.rect.bottom
+
+    return sprite_group
+
+#export all the sprite lists
+hall_sprites = get_sprites(hall_sprites)
+room_sprites = get_sprites(room_sprites)
+door_sprites = get_sprites(door_sprites)
+
+# #add the sprites
+all_sprites.add(entry_sprite) 
 all_sprites.add(hall_sprites)
 all_sprites.add(room_sprites)
 all_sprites.add(guide_walls)
 all_sprites.add(wall_sprites)
 all_sprites.add(door_sprites)
-
-print (Map.room_type_count)
-print (len(all_sprites))
 
 #main game loop
 game_continue = True
@@ -859,10 +1015,15 @@ while game_continue:
         if keys[pygame.K_DOWN]:
             for sprites in all_sprites:
                 sprites.rect.y -= Map.wall_width * 5
+        if keys[pygame.K_ESCAPE]:
+            game_continue = False
 
     all_sprites.update()
 
     win.fill((231,226,211))
     all_sprites.draw(win)
     pygame.display.flip()
+
+#{'office': 29, 'closet': 0, 'storage': 5, 'kitchen': 0, 'bathroom': 0, 'industry': 3, 'locker': 0}
+
 
