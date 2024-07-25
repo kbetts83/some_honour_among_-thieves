@@ -1,4 +1,4 @@
-# https://github.com/gerryjenkinslb/blit_article/blob/main/three_blits.py
+# https://githubs.com/gerryjenkinslb/blit_article/blob/main/three_blits.py
 # https://stackoverflow.com/questions/66665946/what-is-the-difference-between-pygame-sprite-and-surface
 #https://www.youtube.com/watch?v=j2OhRUGQ1M8
 import pygame
@@ -9,7 +9,7 @@ import SHAT_game_objects as game_objects
 import SHAT_characters as character
 
 #get the 
-from SHAT_map_gen_v2 import hall_sprites, room_sprites, door_sprites
+from SHAT_map_gen_v2 import hall_sprites, room_sprites, door_sprites, wall_sprites
 
 thief_sprites = pygame.sprite.Group()
 all_sprites = pygame.sprite.Group()
@@ -17,7 +17,7 @@ all_sprites = pygame.sprite.Group()
 clock = pygame.time.Clock()
 fps_rate = 30
 
-blue = (0,0,200)
+blue = (0,0,100)
 red = (150,0,0)
 yellow = (255, 255, 0)
 green = (0,255,0)
@@ -49,7 +49,6 @@ class Setup():
 
 			self.player_camera_surface_list.append ({'thief': thief, 'camera' : camera})
 
-
 class Camera():
 
 	def __init__(self):
@@ -58,7 +57,7 @@ class Camera():
 		self.width = int
 		self.x = int
 		self.y = int
-		self.color = (random.randint(1,100),2,100)
+		self.color = (200,200,200)
 		self.player = 0
 
 	def set_screen_size(self, players):
@@ -96,7 +95,7 @@ class Camera():
 	def calculate_offset(sprite, thief_sprite):
 		x = thief_sprite.posx - sprite.posx
 		y = thief_sprite.posy - sprite.posy
-
+		
 		return {'x' : x, 'y': y}
 
 	def blit_action(self,surface, sprites, thief_sprite,camera):
@@ -122,23 +121,27 @@ number_of_players = 1
 entry_sprite = map_gen.get_entry_sprites()
 
 #and the rest of the sprites
-print (hall_sprites)
-
 setup = Setup()
 setup.setup_player_list(number_of_players,thief_sprites, entry_sprite)
 
 #add sprites to all sprite list
 all_sprites.add (entry_sprite)
-all_sprites.add (hall_sprites)
 all_sprites.add (room_sprites)
+all_sprites.add (hall_sprites)
+all_sprites.add (wall_sprites)
+
 all_sprites.add (door_sprites)
 
+
 all_sprites.add (thief_sprites)
+
 
 # Main game loop
 running = True
 while running:
-	clock.tick(fps_rate)
+
+	
+	delta_time = clock.tick(fps_rate) * 0.001 * fps_rate
 
 	for event in pygame.event.get():
 		if event.type == pygame.QUIT:
@@ -149,12 +152,13 @@ while running:
 	for player in range(number_of_players):
 
 		current_player = setup.player_camera_surface_list[player]
+		camera = current_player['camera']
 
 		#get thief and update his inputs
 		thief = current_player['thief']
-		thief.move(keys,event)
+		thief.horizontal_move(keys,event, delta_time)
+		# thief.detect_collision(wall_sprites, camera)
 
-		camera = current_player['camera']
 		surface = camera.create_surface()
 
 		camera.blit_action(surface, all_sprites, thief, camera)

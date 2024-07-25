@@ -3,14 +3,16 @@ import random
 
 class Spawn_Points():
 
+
 	char_width = 10 #this is dirty, fix this
 	buffer = int (char_width / 2)
+	wall_width = 56 #fix this  
 
 	def create_entry_spawn( entry_sprite):
 
 		if entry_sprite.orientation == 'north' or entry_sprite.orientation == 'south':
-			starting_x = entry_sprite.rect.right
-			starting_y = entry_sprite.rect.top + Spawn_Points.buffer
+			starting_x = entry_sprite.rect.right - Spawn_Points.wall_width
+			starting_y = entry_sprite.rect.top + Spawn_Points.buffer + Spawn_Points.wall_width
 
 			if entry_sprite.orientation == "south":
 				starting_y += entry_sprite.rect.height
