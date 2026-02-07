@@ -43,7 +43,7 @@ class Setup():
 			thief.assign_control_scheme()
 			thief_sprites.add(thief)
 
-			camera= Camera()
+			camera = Camera()
 			camera.set_screen_size(number_of_players)
 			camera.set_screen_position(number_of_players,player)
 
@@ -132,9 +132,7 @@ all_sprites.add (wall_sprites)
 
 all_sprites.add (door_sprites)
 
-
 all_sprites.add (thief_sprites)
-
 
 # Main game loop
 running = True
@@ -157,7 +155,7 @@ while running:
 		#get thief and update his inputs
 		thief = current_player['thief']
 		thief.horizontal_move(keys,event, delta_time)
-		# thief.detect_collision(wall_sprites, camera)
+		thief.detect_collision(wall_sprites, camera)
 
 		surface = camera.create_surface()
 

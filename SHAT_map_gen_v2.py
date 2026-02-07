@@ -1,7 +1,6 @@
 import pygame
 import random
 import uuid
-
 import SHAT_game_objects
 #random.seed(33) # east
 #random.seed(1) #north
@@ -233,12 +232,21 @@ class Hallway(Map):
         self.image = pygame.Surface((x,y))
         self.rect.x = posx
         self.rect.y = posy
+        self.posx = posx
+        self.posy = posy
         self.rect.width = x
         self.rect.height = y
         self.hall_size_mod = random.randint (2,4)
         self.image.fill(Map.hallway)  
+        r = random.randint(10,100)
+        b = random.randint(10,100)
+        g = random.randint(10,100) #100,100,150
+        self.image.fill((r,g,b))  
+
         self.direction = direction
         self.ph_weight = 0
+        self.length = x
+        self.height = y
 
     def build_potential_halls(self):
 
@@ -275,7 +283,6 @@ class Hallway(Map):
                 return 0
 
     def select_hallway(last_direction):
-
         #iterate through each hallway option
         for hall in possible_sprites:
             #create the potential hall
@@ -309,7 +316,7 @@ class Hallway(Map):
             #check to see if there's a collision with an exisiting hall 
             ph_hall_collision_test =  pygame.sprite.spritecollide(hall, hall_sprites, False)
             if ph_hall_collision_test:
-                hall.ph_weight -= random.randint (3,5)
+                hall.ph_weight -=10000 #random.randint (3,5) #problem i think
             if not ph_hall_collision_test:
                 hall.ph_weight += random.randint (0,1)
 
@@ -343,7 +350,7 @@ class Hallway(Map):
         #and if it collides with the parking lot, nuke it
         parking_lot_test = pygame.sprite.spritecollide (hall, parking_lot_sprites, False)
         if parking_lot_test:
-            hall.ph_weight -= 10
+            hall.ph_weight -= 100
 
         #and select the biggest one #covert it to a  list first seems like the easiest way
         possible_hall_list = []
@@ -359,10 +366,11 @@ class Hallway(Map):
             roll_if_pos = 0
 
         #select the hall - either the first or second entry
-        hall_att = possible_hall_list [random.randint (0,roll_if_pos)]
+        # hall_att = possible_hall_list [random.randint (0,roll_if_pos)] #prob
+        hall_att = possible_hall_list[0]
         hall = Hallway (hall_att[0][0],hall_att[0][1],hall_att[0][2], hall_att[0][3], hall_att[2])
         hall_sprites.add (hall)
-        #and delete the potential hall sprites
+        #and delete the potential hall sprites 
         possible_sprites.empty()
 
         return hall
@@ -680,7 +688,7 @@ class Door(Map):
 
     #door variables
     door_size = Map.wall_width * 2
-    door_size_long =  Map.wall_width * 3
+    door_size_long =  Map.wall_width * 5 #was 3
     door = (192,192,192)
 
     def __init__(self,x,y, width, height):
@@ -690,14 +698,13 @@ class Door(Map):
         self.rect.x = x
         self.rect.y = y
         self.orientation = None
-        self.cardinal = None
         self.image.fill  ((200,200,200))
         self.room_check = True
-        self.door_collsion_count = 0
+        self.guide_door = False
 
     def check_doors(door):
 
-        #make sure it connects with at least 2 rooms $toot
+        #make sure it connects with at least 2 rooms 
         room_collide_test = pygame.sprite.spritecollide (door, room_sprites, False)
         if len(room_collide_test) < 2:
             door.room_check = False
@@ -747,15 +754,43 @@ class Door(Map):
                 if door.rect.right > hall.rect.right:
                     door.room_check = False
 
+    def check_against_external_sprites(sprite_list):
+
+        for sprite in sprite_list: # see everything it collides with
+            room_check = pygame.sprite.spritecollide(sprite, room_sprites, False)
+            hall_check = pygame.sprite.spritecollide(sprite, hall_sprites, False)
+            check_list = room_check + hall_check
+
+            #if it's too high up on the collided sprite
+            sprite.remove = True
+            for checked_item in check_list:
+                if (sprite.orientation) == 'vertical':
+
+                    if sprite.rect.top < (checked_item.rect.top + Map.wall_width * 2):
+                        sprite.remove = False
+
+                    if sprite.rect.bottom >(checked_item.rect.bottom + Map.wall_width * 2):
+                        sprite.remove = False
+
+                if (sprite.orientation) == 'horizontal':
+
+                    if sprite.rect.left < (checked_item.rect.left + Map.wall_width * 2) :
+                        sprite.remove = False
+
+                    if sprite.rect.right >(checked_item.rect.right + Map.wall_width * 2):
+                        sprite.remove = False
+
+        return sprite_list
+
     def create_vertical_doors(room): 
 
-        x = room.rect.right
+        x = room.rect.right - Map.wall_width * 2
         y =random.randint (room.rect.top + Map.wall_width * 2, room.rect.bottom - Door.door_size)
         east_door = Door(x - Map.wall_width ,y, Door.door_size_long , Door.door_size)
         east_door.orientation = 'vertical'
         Door.check_doors(east_door)
 
-        x = room.rect.left - Map.wall_width
+        x = room.rect.left - Map.wall_width * 2
         y =random.randint (room.rect.top + Map.wall_width * 2, room.rect.bottom - Door.door_size)
         west_door = Door(x - Map.wall_width ,y, Door.door_size_long , Door.door_size)
         west_door.orientation = 'vertical'
@@ -771,11 +806,11 @@ class Door(Map):
     def create_horizontal_doors(room):
         y = room.rect.top - Map.wall_width * 2
         x =random.randint (room.rect.left + Map.wall_width * 2 , room.rect.right - Door.door_size)
-        north_door = Door(x - Map.wall_width ,y, Door.door_size , Door.door_size_long)
+        north_door = Door(x - Map.wall_width ,y- Map.wall_width, Door.door_size , Door.door_size_long)
         north_door.orientation = 'horizontal'
         Door.check_doors(north_door)
 
-        y = room.rect.bottom - Map.wall_width 
+        y = room.rect.bottom - Map.wall_width * 2
         x =random.randint (room.rect.left + Map.wall_width * 2, room.rect.right - Door.door_size)
         south_door = Door(x - Map.wall_width ,y, Door.door_size , Door.door_size_long)
         south_door.orientation = 'horizontal'
@@ -802,9 +837,20 @@ class Door(Map):
         vertical_choices = random.sample(vertical_list, room.vertical_door_count)
         horizontal_choices = random.sample(horizontal_list, room.horizontal_door_count)
 
+        #see if there are any weird interactions with other rooms
+        Door.check_against_external_sprites(vertical_choices)
+        Door.check_against_external_sprites(horizontal_choices)
+
+        for choice in vertical_choices:
+            if choice.remove == False:
+                vertical_choices.remove(choice)
+
+        for choice in horizontal_choices:
+            if choice.remove == False:
+                horizontal_choices.remove(choice)
+
         door_sprites.add(horizontal_choices)
         door_sprites.add(vertical_choices)
-
     
     def create_entry_rooms(entry): 
 
@@ -821,6 +867,39 @@ class Door(Map):
             if test :
                 door_sprites.add(entry_door)
 
+    def create_guide_doors (hall):
+        sm = Map.wall_width
+        lrg = Map.wall_width * 2
+
+        check_list = []
+
+        if hall.direction == "north" or hall.direction == 'south':
+            #x,y,width,height
+            north_door = Door(hall.rect.centerx, hall.rect.top - sm, sm, lrg)
+            north_door.image.fill((255,105,180))
+
+            south_door = Door(hall.rect.centerx, hall.rect.bottom  - sm, sm, lrg)
+            south_door.image.fill((255,105,180))
+
+            check_list.append(north_door)
+            check_list.append(south_door)
+
+        if hall.direction == "east" or hall.direction == 'west':
+            east_door = Door(hall.rect.right - sm, hall.rect.centery, lrg, sm)
+            east_door.image.fill((255,105,180))
+
+            west_door = Door(hall.rect.left - sm, hall.rect.centery, lrg, sm)
+            west_door.image.fill((255,105,180))
+
+            check_list.append(east_door)
+            check_list.append(west_door)
+
+        for door in check_list:
+            multiple_door_check = pygame.sprite.spritecollide (door, hall_sprites, False)
+            if  len(multiple_door_check) == 2:
+                door.guide_door = True
+                door_sprites.add(door)
+
 class Wall(Map):
 
     def __init__(self, width,height, posx, posy):
@@ -835,96 +914,254 @@ class Wall(Map):
         self.posy = posy
         self.rect.x = posx
         self.rect.y = posy
+        self.position = None
+        self.width = width
+        self.height = height
+        self.proto_wall = True
+        self.shuffle_amount = int (Map.wall_width/2)
+        self.sprite_id = None
 
-    def check_valid_wall(first_point, second_point):
-        potential_length = second_point - first_point
-        if potential_length <= 0:
-            potential_length = potential_length * -1
+    def create_sprite_id(self, sprite):
+        self.sprite_id = id(sprite)
 
-        return potential_length
+    def isolate_hallway(wall, hall_sprites):
+        # #do a collision check, see how many halls it goes through
+        hallway_wall_collision_test =  pygame.sprite.spritecollide(wall, hall_sprites, False)
+        return (len(hallway_wall_collision_test))
 
-    def create_wall(sprite_group, wall_sprites, door_sprites):
-        for sprite in sprite_group:
+    def shuffle_wall (self):
 
-            #positions and lengths are corect, it's the check_valid_wall that's wrong 
-            proto_top_wall = Wall (sprite.rect.width, Map.wall_width, sprite.posx , sprite.posy )
-            proto_top_wall.orientation = 'horizontal'
-            proto_bottom_wall = Wall(sprite.rect.width, Map.wall_width, sprite.posx, sprite.posy + sprite.rect.height)
-            proto_bottom_wall.orientation = 'horizontal'
-            proto_left_wall = Wall(Map.wall_width, sprite.rect.height - Map.wall_width , sprite.posx, sprite.posy + Map.wall_width )
-            proto_left_wall.orientation = 'vertical'
-            proto_right_wall = Wall(Map.wall_width, sprite.rect.height - Map.wall_width , sprite.posx + sprite.rect.width - Map.wall_width, sprite.posy + Map.wall_width)
-            proto_right_wall.orientation = 'vertical'
+        if self.position == 'top':
+            self.rect.y -= self.shuffle_amount
 
-            proto_wall_list = (proto_top_wall, proto_bottom_wall, proto_left_wall, proto_right_wall)
-            for proto_wall in proto_wall_list:
-                door_collsion =  pygame.sprite.spritecollide(proto_wall, door_sprites, False)
-                if len(door_collsion) == 0: #if no doors, just add wall
-                    wall_sprites.add(proto_wall)
+        if self.position == 'bottom':
+            self.rect.y += self.shuffle_amount
 
-                if len(door_collsion) >=1: #but if there are doors
+        if self.position == 'left':
+            self.rect.x -= self.shuffle_amount
+
+        if self.position == 'right':
+            self.rect.x += self.shuffle_amount
+
+    def reshuffle_wall(self):
+
+        if self.position == 'top':
+            self.rect.y += self.shuffle_amount
+
+        if self.position == 'bottom':
+            self.rect.y -= self.shuffle_amount
+
+        if self.position == 'left':
+            self.rect.x += self.shuffle_amount
+
+        if self.position == 'right':
+            self.rect.x -= self.shuffle_amount
+
+    def create_proto_wall(sprite, wall_sprites, door_sprites):
+        proto_top_wall = Wall (sprite.rect.width, Map.wall_width, sprite.posx , sprite.posy )
+        proto_top_wall.orientation = 'horizontal'
+        proto_top_wall.position = 'top'
+
+        proto_bottom_wall = Wall(sprite.rect.width, Map.wall_width, sprite.posx, sprite.posy + sprite.rect.height)
+        proto_bottom_wall.orientation = 'horizontal'
+        proto_bottom_wall.position = 'bottom'
+
+        proto_left_wall = Wall(Map.wall_width, sprite.rect.height - Map.wall_width  , sprite.posx, sprite.posy + Map.wall_width )
+        proto_left_wall.orientation = 'vertical'
+        proto_left_wall.position = 'left'
+        proto_left_wall.rect.height -= Map.wall_width
+
+        proto_right_wall = Wall(Map.wall_width, sprite.rect.height - Map.wall_width , sprite.posx + sprite.rect.width - Map.wall_width, sprite.posy + Map.wall_width)
+        proto_right_wall.orientation = 'vertical'
+        proto_right_wall.position = 'right'
+
+        sprite.proto_wall_group = [proto_top_wall, proto_bottom_wall, proto_left_wall, proto_right_wall ]
+
+    def test_for_collision(self, door_sprites, room_sprites, hall_sprites):
+
+        door_collide_check_test = pygame.sprite.spritecollide (self, door_sprites, False)
+        room_collide_check_test = pygame.sprite.spritecollide (self, room_sprites, False)
+        hall_collide_check_test = pygame.sprite.spritecollide (self, hall_sprites, False)
+
+        if self.orientation == 'vertical':
+            door_collide_check_test.sort(key=lambda obj: obj.rect.y)
+            door_collide_check_test.sort(key=lambda obj: obj.rect.y)
+            hall_collide_check_test.sort(key=lambda obj: obj.rect.y)
+
+        if self.orientation == 'horizontal':
+            door_collide_check_test.sort(key=lambda obj: obj.rect.x)
+            door_collide_check_test.sort(key=lambda obj: obj.rect.x)
+            hall_collide_check_test.sort(key=lambda obj: obj.rect.x)
+
+        return {'door_collide_check_test': door_collide_check_test,
+                'room_collide_check_test' : room_collide_check_test,
+                'hall_collide_check_test' : hall_collide_check_test
+        }
+
+    def remove_walls_guide_door(wall_sprites, door_sprites):
+        collide_guide_door_chck= pygame.sprite.groupcollide(wall_sprites,door_sprites, False, False, )
+        for wall, doors in collide_guide_door_chck.items():
+            for door in doors:
+                if door.guide_door == True:
+
+                    wall.kill()
+
+    def build_walls(sprite, wall_sprites, door_sprites):
+        Wall.create_proto_wall(sprite, wall_sprites, door_sprites) 
+
+        check_list = []
+        for proto_wall in sprite.proto_wall_group:
+            proto_wall.initial_id = id(sprite)
+
+            first_wall = Wall(Map.wall_width, Map.wall_width,30000,30000)
+            last_wall =  Wall(Map.wall_width, Map.wall_width,30000,30000)
+
+            proto_wall.create_sprite_id(sprite)
+            proto_wall.shuffle_wall() #check for collisions first
+            collision_test = proto_wall.test_for_collision(door_sprites, room_sprites, hall_sprites)
+
+            proto_wall.reshuffle_wall()
+
+            #check for no colliisons
+
+            #no collisions, just add
+            if (len(collision_test['door_collide_check_test']) == 0
+            and len(collision_test['room_collide_check_test']) <= 1
+            and len(collision_test['hall_collide_check_test']) <= 1 ):
+                proto_wall.add(wall_sprites)
+
+            check_list = collision_test['door_collide_check_test']
+
+
+            # if type(sprite).__name__ == "Hallway": chcek this, its a pain in the bumm
+            #     check_list = check_list + collision_test['hall_collide_check_test']
+
+            for item in check_list: #remove item from list if it's a guide dor
+                if type(item).__name__ == "Door" and  item.guide_door == True:
+                    check_list.remove(item)
+
+            if len(check_list) >0 : #do the first and last
+
+                first_item = check_list[0]
+                last_item = check_list[-1]
+
+                if type(sprite).__name__ != "Hallway":
+
+                    #width, height, x, y
                     if proto_wall.orientation == 'horizontal':
-                        door_collsion = new_list = sorted(door_collsion, key=lambda door: door.rect.x, reverse=False)
+                        check_list.sort(key=lambda item: item.rect.x)
+
+                        if type(first_item).__name__ == "Door":
+
+                            length = check_list[0].rect. left - sprite.rect.left
+                            first_wall = Wall(length, Map.wall_width,
+                                proto_wall.rect.left, proto_wall.rect.y)
+
+                        if type(last_item).__name__ == "Door":
+
+                            length = sprite.rect.right - last_item.rect.right
+                            last_wall = Wall(length, Map.wall_width,
+                                check_list[-1].rect.right, proto_wall.rect.y)
+
                     if proto_wall.orientation == 'vertical':
-                        door_collsion = new_list = sorted(door_collsion, key=lambda door: door.rect.y, reverse=False)
+                        check_list.sort(key=lambda item: item.rect.y)
+                        
+                        if type(first_item).__name__ == "Door":
+                            height = first_item.rect.y - sprite.rect.top
 
-                    for door_number, door in enumerate(door_collsion):
-                        if door_number == 0: # first one
+                            first_wall = Wall(Map.wall_width, height,
+                                proto_wall.rect.x, proto_wall.rect.y)
 
-                            if proto_wall.orientation == 'horizontal':
-                                height = proto_wall.rect.height
-                                length = Wall.check_valid_wall(proto_wall.rect.left, door.rect.left)
-                                
-                                new_wall = Wall(length, height, proto_wall.posx, proto_wall.posy)
-                                wall_sprites.add(new_wall)
+                        if type(last_item).__name__ == "Door":
+                            height = sprite.rect.bottom - last_item.rect.bottom
+                            last_wall = Wall (Map.wall_width, height,
+                                proto_wall.rect.x, last_item.rect.bottom
+                                )
 
-                            if proto_wall.orientation == "vertical":
-                                height = Wall.check_valid_wall (proto_wall.rect.top, door.rect.top)
-                                length = proto_wall.rect.width
+                #### evertyting above this line is peftect      
+                if type(sprite).__name__ == "Hallway":
 
-                                new_wall = Wall (length, height, proto_wall.posx, proto_wall.posy)
-                                wall_sprites.add(new_wall)
+                    if proto_wall.orientation == 'horizontal':
+                        check_list.sort(key=lambda item: item.rect.x)
+                        if type(first_item).__name__ == "Door":
+                            color = ((0,0,0))
+                            if first_item.guide_door == False:
+                                length = check_list[0].rect. left - sprite.rect.left
 
-                        if door_number == len(door_collsion) - 1: #the last one
+                                if length < 0: #this can be fixed obvi
+                                    length = Map.wall_width
+                                    color = ((200,0,0))
 
-                            if proto_wall.orientation == 'horizontal':
-                                height = proto_wall.rect.height
-                                length = Wall.check_valid_wall(door.rect.right, sprite.rect.right)
-                                
-                                new_wall = Wall(length, height, door.rect.right, proto_wall.posy)
-                                wall_sprites.add(new_wall)
+                                first_wall = Wall(length, Map.wall_width,
+                                    proto_wall.rect.left,proto_wall.rect.y)
 
-                            if proto_wall.orientation == "vertical":
-                                height = Wall.check_valid_wall(door.rect.bottom, sprite.rect.bottom)
-                                length = proto_wall.rect.width
+                                first_wall.image.fill(color)
 
-                                new_wall = Wall(length, height, proto_wall.posx, door.rect.bottom)
-                                wall_sprites.add(new_wall)
+                        if type(last_item).__name__ == "Door":
 
-                        if door_number < len(door_collsion) -1: #and the rest
+                            if last_item.guide_door == False:
+                                color = ((0,0,0))
+                                length = sprite.rect.right - last_item.rect.right
 
-                            if proto_wall.orientation == 'horizontal':
-                                height = proto_wall.rect.height
-                                first_point = door.rect.right
-                                second_point = door_collsion[door_number + 1].rect.left
-                                length = Wall.check_valid_wall(first_point, second_point)
-                                new_wall = Wall(length, height, door.rect.right,proto_wall.posy)
-                                wall_sprites.add(new_wall)
+                                if length < 0: #this can be fixed obvi
+                                    length = Map.wall_width
+                                    color = ((200,0,0))
 
-                            if proto_wall.orientation == "vertical":
-                                length = proto_wall.rect.width
-                                first_point = door.rect.bottom
-                                second_point = door_collsion[door_number + 1].rect.top
-                                height = Wall.check_valid_wall(first_point, second_point)
-                                new_wall = Wall(length, height, proto_wall.posx,door.rect.bottom)
-                                wall_sprites.add (new_wall)
-                                
-def increase_size(map_object, size_modifier):
-    size_modifier = int(size_modifier)
-    map_object.rect.width = map_object.rect.width * size_modifier
-    map_object.rect.height = map_object.rect.height * size_modifier
+                                last_wall = Wall(length, Map.wall_width,
+                                    check_list[-1].rect.right, proto_wall.rect.y)
 
-#create boundaries
+                                last_wall.image.fill(color)
+
+                    if proto_wall.orientation == 'vertical':
+                        check_list.sort(key=lambda item: item.rect.y)
+
+                        if type(first_item).__name__ == "Door":
+                            if first_item.guide_door == False:
+                                height = first_item.rect.top - sprite.rect.top
+
+                                first_wall = Wall(Map.wall_width, height,
+                                    proto_wall.rect.left,proto_wall.rect.y)
+                                first_wall.image.fill((0,200,0))
+
+                        if type(last_item).__name__ == "Door":
+                            if last_item.guide_door == False:
+                                height = sprite.rect.bottom - last_item.rect.bottom
+                                last_wall = Wall(Map.wall_width, height,
+                                    proto_wall.rect.left, last_item.rect.bottom)
+                                last_wall.image.fill((200,0,0))
+
+                    # #everyting above here is perfect
+
+  
+                wall_sprites.add(first_wall)
+                wall_sprites.add(last_wall)
+
+            #and fill in the middle ones #perfect for hallwy and room $ works
+            middle_wall_amount = (len(check_list)-1)
+            if middle_wall_amount>0:
+                for door_count in range (middle_wall_amount):
+                    first_door = check_list[door_count]
+                    next_door = check_list[door_count + 1]
+
+                    #width,height, posx, posy
+                    if proto_wall.orientation == 'horizontal': #first door
+                        width = next_door.rect.left - first_door.rect.right
+                        height = Map.wall_width
+                        x = first_door.rect.right
+                        y = proto_wall.rect.y
+
+                    if proto_wall.orientation == 'vertical':
+                        width = Map.wall_width
+                        height = next_door.rect.top - first_door.rect.bottom
+                        x = proto_wall.rect.x
+                        y = first_door.rect.bottom
+
+                    if width >0 and height >0:
+                        wall = Wall(width, height,x,y)
+                        wall_sprites.add(wall)
+
+
+
 Map.create_boundaries
 
 #create entry
@@ -971,11 +1208,21 @@ for room in room_sprites:
 
     Door.choose_doors(room)
 
-#add walls for entry
-Wall.create_wall(entry_sprite, wall_sprites, door_sprites)
 
-#and the rooms - add walls
-Wall.create_wall(room_sprites, wall_sprites, door_sprites)
+# #add walls for entry
+Wall.build_walls(entry, wall_sprites, door_sprites)
+
+#and rooms
+for room in room_sprites:
+    Wall.build_walls(room, wall_sprites, door_sprites)
+
+#and hallways
+for hall in hall_sprites:
+    Wall.build_walls(hall, wall_sprites, door_sprites)
+    Door.create_guide_doors(hall) #and the guidance doors
+
+#and delete the walls that hit the guard doors
+Wall.remove_walls_guide_door(wall_sprites,door_sprites)
 
 #add entry sprite
 def get_entry_sprites():
@@ -1000,8 +1247,7 @@ all_sprites.add(hall_sprites)
 all_sprites.add(room_sprites)
 all_sprites.add(guide_walls)
 all_sprites.add(wall_sprites)
-# all_sprites.add(door_sprites)
-
+all_sprites.add(door_sprites)
 
 # #main game loop
 
@@ -1036,6 +1282,5 @@ if __name__ == "__main__":
         all_sprites.draw(win)
         pygame.display.flip()
 
-#{'office': 29, 'closet': 0, 'storage': 5, 'kitchen': 0, 'bathroom': 0, 'industry': 3, 'locker': 0}
 
 
